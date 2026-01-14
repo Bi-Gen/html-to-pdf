@@ -1,6 +1,21 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+
+const ANALYTICS_URL = 'http://168.231.110.189:3001';
+
+// Track page view
+function trackPageView() {
+  fetch(`${ANALYTICS_URL}/api/track/pageview`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      project: 'html-to-pdf',
+      path: window.location.pathname,
+      referrer: document.referrer
+    })
+  }).catch(() => {});
+}
 
 interface ConvertOptions {
   format: 'A4' | 'Letter' | 'Legal';
@@ -20,6 +35,11 @@ export default function Home() {
     printBackground: true,
     scale: 1,
   });
+
+  // Track page view on mount
+  useEffect(() => {
+    trackPageView();
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

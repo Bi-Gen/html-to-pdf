@@ -5,6 +5,34 @@ import { createZipFromPdfs } from '@/lib/zip-creator';
 export const maxDuration = 60; // 60 seconds timeout
 export const dynamic = 'force-dynamic';
 
+const ANALYTICS_URL = process.env.ANALYTICS_URL || 'http://localhost:3001';
+
+// Track conversion to analytics
+async function trackConversion(url: string, success: boolean, duration: number, fileSize: number, ip: string) {
+  try {
+    await fetch(`${ANALYTICS_URL}/api/track/conversion`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        project: 'html-to-pdf',
+        url,
+        success,
+        duration,
+        fileSize
+      })
+    });
+  } catch {
+    // Ignore analytics errors
+  }
+}
+
+// Get client IP
+function getClientIp(request: NextRequest): string {
+  return request.headers.get('x-forwarded-for')?.split(',')[0] ||
+         request.headers.get('x-real-ip') ||
+         'unknown';
+}
+
 interface RequestBody {
   urls: string[];
   options?: ConvertOptions;
@@ -50,9 +78,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const clientIp = getClientIp(request);
+
     // Single URL - return PDF directly
     if (cleanUrls.length === 1) {
       const result = await convertUrlToPdf(cleanUrls[0], options);
+
+      // Track conversion
+      trackConversion(cleanUrls[0], result.success, result.duration || 0, result.buffer.length, clientIp);
 
       if (!result.success) {
         return NextResponse.json(
@@ -73,6 +106,11 @@ export async function POST(request: NextRequest) {
 
     // Multiple URLs - return ZIP
     const results = await convertMultipleUrlsToPdf(cleanUrls, options);
+
+    // Track all conversions
+    for (const result of results) {
+      trackConversion(result.url, result.success, result.duration || 0, result.buffer.length, clientIp);
+    }
 
     // Filter successful conversions
     const successfulResults = results.filter((r) => r.success);
