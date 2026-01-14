@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 
-const ANALYTICS_URL = 'http://168.231.110.189:3001';
+const ANALYTICS_URL = 'https://dashboard.bi-gen.it';
 
 // Track page view
 function trackPageView() {
